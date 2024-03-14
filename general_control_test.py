@@ -76,6 +76,7 @@ def get_file_digest(file_path):
 def save_hashed_filehex(hashed_file_hex_path, file_path, file_id):
     global digest
     digest = get_file_digest(file_path)
+    # 将哈希摘要的十六进制表示保存到文件中
     with open(hashed_file_hex_path, 'w') as file:
         file.write(f"ID: {file_id} - Hash value: {digest.hex()}\n")
     print(f"The mapping between file ID and hash digest has been saved to file {hashed_file_hex_path}!")
@@ -101,6 +102,7 @@ def send_file_to_server(server_ip, server_port, file_path):
     finally:
         sock.close()
 
+# 文件上传
 def upload_file():
     server_ip = '8.138.56.15'
     server_port = 5000
@@ -126,12 +128,15 @@ def main():
     kpabe = KPabe(groupObj)
     hyb_abe = HybridABEnc(kpabe, groupObj)
     (pk, mk) = hyb_abe.setup()
+    # 序列化
     pk_serialized = objectToBytes(pk, groupObj)
     mk_serialized = objectToBytes(mk, groupObj)
+    # 将序列化后的公钥和主钥写入文件
     with open('pk_serialized.pkl', 'wb') as f:
         f.write(pk_serialized)
     with open('mk_serialized.pkl', 'wb') as f:
         f.write(mk_serialized)
+
     while True:
         print("\n************Welcome to private file safe storage and reliable sharing management system************")
         print("1. Upload file")
@@ -143,8 +148,10 @@ def main():
         print("7. Enable topic listening on a node")
         print("8. quit")
         choice = input("Please enter the operation number to be performed: ")
+
         if choice == "1":
             upload_file()
+
         elif choice == "2":
             try:
                 print("Trying to connect to the blockchain end server......")
@@ -155,13 +162,15 @@ def main():
                 exit(1)
             username = input("Please enter your username:")
             passwd = input("Please enter your password:")
+
+            #身份验证
             res = BasePacker.command_send('verification',username=username,passwd=passwd,cli=tcp_cli)
             if not res:
                 exit(1)
             print("Authentication successful!")
             if res == True:
                 tcp_cli.close()
-                time.sleep(80)
+                time.sleep(70)
                 try:
                     tcp_clii = socket(AF_INET,SOCK_STREAM)
                     print("Trying to connect to the blockchain end server......")
@@ -173,6 +182,8 @@ def main():
                     print ('Time out or unknow IP. Please Contact the Administrator.')
                     exit(1)
                 file_ID = input("Enter the ID of the file you want to get: ")
+
+                # 将输入的文件ID转换为字节串
                 id_to_send = file_ID.encode()
                 try:
                     tcp_clii.sendall(id_to_send)
@@ -182,7 +193,7 @@ def main():
                 try:
                     file_ID_int = int(file_ID)
                     try:
-                        file_cid = tcp_clii.recv(1024)
+                        file_cid = tcp_clii.recv(1024) # 接收数据，1024字节的缓冲区大小
                     except Exception as e:
                         print('Failed to receive data from the server. Exception:', e)
                         exit(1)
@@ -191,14 +202,19 @@ def main():
                     print(f'Error getting file CID: {e}')
                     exit(1)
                 ipfs_hash = file_cid.decode()
-                ipfs_url = '8.138.56.15:5001'
-                output_path = input("请输入文件的保存路径: ")
+                ipfs_url = '8.138.56.15:5001' # IPFS节点URL
+                output_path = input("Please enter the file saving path: ")
                 download_result = download_file_from_ipfs(ipfs_hash, ipfs_url, output_path)
                 print(download_result)
+
         elif choice == "3":
             file_path = input("Please enter the file path to be encrypted:")
+
+            # 接收用户输入的属性列表和访问策略
             access_policy = input("Enter a list of properties, separated by commas:").split(',')
             access_key = input("Please enter the access control policy:")
+
+            # 反序列化（读取）
             with open('pk_serialized.pkl', 'rb') as f:
                 pk_deserialized = bytesToObject(f.read(), groupObj)
             with open('mk_serialized.pkl', 'rb') as f:
@@ -207,6 +223,8 @@ def main():
             sk_serialized = objectToBytes(sk, groupObj)
             with open('sk_file', 'wb') as f:
                 f.write(sk_serialized)
+
+            # 读取要加密的文件内容
             with open(file_path, 'rb') as f:
                 data = f.read()
             encrypted_data = hyb_abe.encrypt(pk, data, access_policy)
@@ -214,29 +232,37 @@ def main():
             with open('encrypted_file', 'wb') as f:
                 f.write(encrypted_data_serialized)
             print("The file is encrypted. The encrypted file path is encrypted_file")
+
+            # 删除原始的明文文件
             os.remove(file_path)
             print("Original file deleted")
+
         elif choice == "4":
             # 设定群
             groupObj = PairingGroup('SS512')
             kpabe = KPabe(groupObj)
             hyb_abe = HybridABEnc(kpabe, groupObj)
             encrypted_file_path = input("Please enter the file path to decrypt: ")
+            # 反序列化（读取）
             with open('encrypted_file', 'rb') as f:
                 encrypted_data_deserialized = bytesToObject(f.read(), groupObj)
             with open('sk_file', 'rb') as f:
                 sk_file_deserialized = bytesToObject(f.read(), groupObj)
             decrypted_data = hyb_abe.decrypt(encrypted_data_deserialized, sk_file_deserialized)
+
+            # 将解密后的数据写入到一个文件中
             with open('decrypted_file', 'wb') as f:
                 f.write(decrypted_data)
             print("File decryption complete, decrypt file path: decrypted_file")
+
         elif choice == "5":
             hashed_file_hex_path = 'hashed_file_hex.txt'
             file_path = input("Enter the path to the file where you want to generate the hash summary:") 
-            file_id = random.randint(1, 1000000)
+            file_id = random.randint(1, 1000000) # 生成文件ID
             print(f"The file ID for which the hash summary will be generated is: {file_id}")
             save_hashed_filehex(hashed_file_hex_path, file_path, file_id)
             receive_and_publish_file()
+
         elif choice == "6":
             try:
                 print("Trying to connect to the blockchain end server......")
@@ -247,13 +273,15 @@ def main():
                 exit(1)
             username = input("Please enter your username:")
             passwd = input("Please enter your password:")
+
+            #身份验证
             res = BasePacker.command_send('verification',username=username,passwd=passwd,cli=tcp_cli)
             if not res:
                 exit(1)
             print("Authentication successful!")
             if res == True:
                 tcp_cli.close()
-                time.sleep(80)
+                time.sleep(70)
                 try:
                     tcp_clii = socket(AF_INET,SOCK_STREAM)
                     print("Trying to connect to the blockchain end server......")
@@ -265,6 +293,8 @@ def main():
                     print ('Time out or unknow IP. Please Contact the Administrator.')
                     exit(1)
                 file_ID = input("Enter the ID of the file you want to get (start with !). End):")
+
+                # 将输入的文件ID转换为字节串
                 id_to_send = file_ID.encode()
                 try:
                     tcp_clii.sendall(id_to_send)
@@ -273,7 +303,7 @@ def main():
                     exit(1)
                 try:
                     try:
-                        file_hash = tcp_clii.recv(1024)
+                        file_hash = tcp_clii.recv(1024) # 接收数据，1024字节的缓冲区大小
                     except Exception as e:
                         print('Failed to receive data from the server. Exception:', e)
                         exit(1)
@@ -281,6 +311,7 @@ def main():
                 except Exception as e:
                     print(f'Error getting file hash summary: {e}')
                     exit(1)
+
         elif choice == "7":
             try:
                 os.popen('./monitor.sh')
@@ -288,9 +319,11 @@ def main():
                 print ('Script file execution failed!'\
                       'Please give corresponding file execution permission!')
                 exit(1)
+
         elif choice == "8":
             print("Thanks for using!")
             break
+
         else:
             print("Invalid input, please re-enter")
 
