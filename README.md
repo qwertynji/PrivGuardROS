@@ -38,4 +38,4 @@ python general_control_official.py
 When you enter the folder path and topic type, the system will automatically enable the monitoring of related topics. However, before you start monitoring, make sure that the 'redis' module and your ROS topic publishing node are functioning properly.
 
 ## Contact Us
-If you have any questions here, please post them as Github issues, Or email Tianhao Wang at [wangtianhao@hainanu.edu.cn](mailto:wangtianhao@hainanu.edu.cn).
+If you have any questions here, please post them as Github issues, or email Tianhao Wang at [wangtianhao@hainanu.edu.cn](mailto:wangtianhao@hainanu.edu.cn).
